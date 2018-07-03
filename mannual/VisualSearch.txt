@@ -1,0 +1,7 @@
+Data(168):
+       image enmscoco2014train :               /home/data/weiyu/VisualSearch/mscoco2014train/ImageData
+       /home/data/weiyu/VisualSearch/mscoco2014val/ImageData
+      Text:
+       /home/xcx/VisualSearch/en_mscoco2014train/TextData
+      model :
+      https://github.com/fartashf/vsepp.git

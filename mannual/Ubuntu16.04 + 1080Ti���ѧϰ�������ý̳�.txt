@@ -1,0 +1,256 @@
+https://blog.csdn.net/yaningli/article/details/77089696
+
+
+content：
+
+本文为配置GPU深度学习机器的详细教程，包括显卡驱动安装，GUDA、CUDNN安装，深度学习框架安装等等，请按此教程从头一步一步设置，过程中遇到所有问题都可以在这些步骤中找到解决方案，最折磨人的就是环境配置，这次因为secure boot的问题导致驱动失效……因此分享自己的经历，让大家少走弯路。
+
+总体流程
+安装Ubuntu16.04及显卡驱动
+
+安装CUDA、CUDNN 英伟达GPU加速框架
+
+安装深度学习环境
+
+一、安装Ubuntu16.04及显卡驱动
+安装ubuntu16.04系统就不详细解释，网上有相关教程，可以点这里，建议选择语言为英文。
+
+这里详细说明显卡驱动安装流程：
+
+安装显卡驱动的大致流程为：进入命令行终端 --> 禁用lightdm桌面服务 --> 安装驱动 --> 启用lightdm桌面服务 --> 重启进入BIOS关闭secure boot --> 重启电脑
+
+最重要的步骤为：重启进入BIOS关闭secure boot，此步若不操作，驱动将不会起效！
+
+ubuntu系统安装完毕后，启动时会进入X桌面，可以用U盘将所有提前下载好的驱动、CUDA安装文件、CUDNN安装文件、anaconda3安装包等等文件拷贝到电脑中。
+
+键盘上按下 ctrl + alt + F1，进入命令行模式。ubuntu有命令行模式和X桌面模式，安装驱动必须在命令行模式进行。
+
+禁用X桌面服务，命令行输入：sudo service lightdm stop，此命令将关闭桌面服务，现在已经不能进入桌面模式（重启电脑会重启桌面服务）。
+
+禁用nouveau驱动。ubuntu默认使用自带的nouveau驱动，在安装NVIDIA驱动前，要先禁止nouveau驱动，详细命令教程请点击这里，参考当中的“禁用nouveau驱动”部分。
+
+教程截图：
+
+
+5.添加ppa库，通过ppa安装显卡驱动，注意不要从NVIDIA官网下载显卡驱动，直接通过ppa安装即可：
+
+sudo add-apt-repository ppa:graphics-drivers/ppa
+
+sudo apt-get update
+
+sudo apt-get install nvidia-381
+由于本机显卡为GTX 1080Ti，截止到2017年7月7日，该显卡最新稳定版驱动版本为381.22，因此安装nvidia-381驱动。
+
+安装驱动过程中，若提示各种操作，一般都按accept同意。如果某一步提示你是否Disable Secure Boot，选择ok，进行禁用secure boot。这时会要求你设置密码，直接输入12345678，再输一次确认。安装成功后，再次输入sudo apt-get install nvidia-381，会提示已经安装驱动。
+
+但此时输入nvidia-smi会提示无此命令，驱动没有安装好。这个提示是正常的，因为我们实际上还没正式在BIOS禁用secure boot，现在先可以忽略这个警告。
+
+二、安装CUDA
+紧接着上一部分，我们可以预先下载好CUDA安装文件在桌面模式时放进电脑，下载地址点这里，请务必下载runfile文件（后缀为.run），不能是其它文件。
+
+或者可以用wget进行下载：
+
+wget https://developer.nvidia.com/compute/cuda/8.0/Prod2/local_installers/cuda_8.0.61_375.26_linux-run
+
+下载完毕后，输入:
+sudo sh cuda_8.0.61_375.26_linux.run，进行CUDA安装。
+
+安装过程中会提示你进行一些确认操作，首先是接受服务条款，输入accept确认，然后会提示是否安装cuda tookit、cuda-example等，均输入Y进行确定。但请注意，当询问是否安装附带的驱动时，一定要选N！我们在第一部分已经安装好最新的驱动，附带的驱动是旧版本的而且会有问题，所以不要选择安装驱动。
+
+稍等片刻等待安装完成，这个时候可以使用此链接的教程，测试CUDA是否安装成功。截图如下：
+
+
+最后是配置环境变量，此步很重要，不配置环境变量系统将无法知道CUDA是否被安装：
+
+输入：sudo vi /etc/profile，在底部插入以下两句话：
+
+export PATH=/usr/local/cuda-8.0/bin:$PATH
+
+export LD_LIBRARY_PATH=/usr/local/cuda-8.0/lib64:$LD_LIBRARY_PATH
+然后按esc键，按下“:wq”（注意不包含双引号，记得要包括冒号），然后回车退出。
+
+最后输入：source /etc/profile，使设置生效。
+
+以上步骤可以参考这篇文章：安装配置 Ubuntu 14.04 + CUDA8.0 + cuDNN v5 + caffe
+
+三、安装CUDNN
+CUDNN是NVIDIA用于加速深度学习的模块，装完CUDA之后就要装这个，可以预先在其它电脑下载完毕，然后复制到本机中解压。下载地址为：NVIDIA cudnn
+
+注意要先注册NVIDIA账号，按确认条款后才能下载。
+
+进入CUDNN存放的文件夹，输入：
+
+tar -xzf cudnn-8.0-linux-x64-v5.1.tgz
+
+cd cuda
+
+sudo cp lib64/* /usr/local/cuda/lib64/
+
+sudo cp include/* /usr/local/cuda/include/
+CUDNN就这样安装完毕，现在重启lightdm服务，可重启桌面模式：
+
+sudo service lightdm start
+
+最后可以重启电脑了，马上进入第四步，禁用Secure Boot！
+
+四、禁用Secure Boot【重要！】
+ubuntu16.04有个重要的特性，就是如果需要安装第三方显卡驱动（NVIDIA的就是第三方显卡驱动），就必须在BIOS中禁用“安全启动”模式（secure boot），否则第三方显卡驱动将无法被启动！
+
+当第三部分结束后，输入sudo reboot重启电脑，电脑重启的那一刻，按下F2或者DEL键进入华硕的BIOS，这里只以华硕X99-E WS主板为例，其它主板请参考各自进入BIOS的方式。
+
+此步骤可以直接观看YouTube上的视频，Disabiling ASUS Bios Secure Boot，国内的朋友请翻墙观看，这里截了部分图用于说明过程。
+
+1.进入BIOS，点击BOOT（启动）菜单栏，往下选择“Secure Boot”：
+
+
+2.进入Secure Boot界面后，光标移动至“OS type”，选择为“Other OS”：
+
+
+然后点击“Key Management”，进入界面。
+
+3.选择“Clear Secure Root Keys”，删除安全启动密钥，删除后就能禁止secure boot。
+
+
+按下yes或comfirm，确认删除：
+
+
+4.按下F10，确认保存设置并重启电脑：
+
+
+成功禁用secure boot之后，重启就能回到X桌面，Ctrl + Alt + T，调出命令行，输入nvidia-smi就能看见驱动信息：
+
+
+恭喜你！已经成功安装显卡驱动和CUDA！你还可以输入nvcc -V来查看CUDA版本。
+
+五、安装Anaconda
+anaconda是一款python集成安装软件，里面包含了所有机器学习所需要用到的库，而且各种设置都自动设置妥当，无需人工安装其它依赖，请务必使用anaconda，否则手动配置环境的过程将会相当漫长痛苦！
+
+anaconda的历史版本安装包可以在以下链接找到：Anaconda installer archive，这里选择Anaconda3-4.2.0-Linux-x86_64.sh，在本文写成（2017年7月7日）之时，tensorflow最高只支持python3.5和python2.7，因此选择此版本。
+
+命令行cd到安装包存放地址，输入：Anaconda3-4.3.1-Linux-x86_64.sh安装anaconda，一路输入Y，确认操作就行。
+
+配置环境变量，命令行中输入：sudo vi ~/.bashrc
+
+在底部插入以下这一句：
+
+export PATH=/home/ubuntu/anaconda3/bin:$PATH
+然后输入：source ~/.bashrc，使设置生效。
+
+可以输入conda list python查看python版本，其它详细命令可以查看以下链接：Anaconda使用总结
+
+
+六、更换pip源、conda源和apt-get源
+在使用apt-get安装ubuntu系统软件，或者使用pip或conda命令安装第三方python包时，由于镜像都在国外服务器，国内的朋友使用这些命令安装时会相当慢，因此需要更换这些镜像为国内镜像。
+
+1.更换pip源：
+
+cd到根目录，命令行输入：sudo mkdir .pip，新建一个名为“.pip”的文件夹。
+
+创建pip配置文件：sudo vi ~/.pip/pip.conf，在vi界面中插入以下这句话：
+
+[global]
+index-url = https://pypi.douban.com/simple
+然后按esc键，按下“:wq”（注意不包含双引号，记得要包括冒号），然后回车退出。
+
+即可把pip源更新为国内豆瓣镜像，可参考这篇文章：pip 更换软件镜像源。
+
+2.更换conda源
+
+除了可以pip安装之外，也可以使用conda install xxx来安装第三方python包，要更换为国内镜像，创建配置文件：
+sudo vi ~/.condarc
+
+加入以下几句：
+
+channels:
+
+- https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free/
+
+- defaults
+
+show_channel_urls: true
+然后按esc键，按下“:wq”（注意不包含双引号，记得要包括冒号），然后回车退出。
+
+3.更换apt-get源
+
+直接看这里：Ubuntu 14.04 更换阿里云源
+
+备份旧版本：
+
+sudo cp /etc/apt/sources.list /etc/apt/sources.list.bak #备份
+
+修改文件：
+
+sudo vim /etc/apt/sources.list
+
+在底部加入以下语句：
+
+deb http://mirrors.aliyun.com/ubuntu/ trusty main restricted universe multiverse
+deb http://mirrors.aliyun.com/ubuntu/ trusty-security main restricted universe multiverse
+deb http://mirrors.aliyun.com/ubuntu/ trusty-updates main restricted universe multiverse
+deb http://mirrors.aliyun.com/ubuntu/ trusty-proposed main restricted universe multiverse
+deb http://mirrors.aliyun.com/ubuntu/ trusty-backports main restricted universe multiverse
+deb-src http://mirrors.aliyun.com/ubuntu/ trusty main restricted universe multiverse
+deb-src http://mirrors.aliyun.com/ubuntu/ trusty-security main restricted universe multiverse
+deb-src http://mirrors.aliyun.com/ubuntu/ trusty-updates main restricted universe multiverse
+deb-src http://mirrors.aliyun.com/ubuntu/ trusty-proposed main restricted universe multiverse
+deb-src http://mirrors.aliyun.com/ubuntu/ trusty-backports main restricted universe multiverse
+保存退出。
+
+七、安装深度学习框架
+1.安装keras：
+
+pip install keras
+
+2.安装tensorflow-gpu版本
+
+pip install tensorflow-gpu
+
+3.安装ssh
+
+我们使用其他windows电脑来连接这台服务器，就要通过ssh进行连接，教程可以看这里：Ubuntu16.04安装openssh
+
+安装ssh服务：
+
+sudo apt-get install openssh-server
+
+编辑配置文件：
+
+sudo vi /etc/ssh/sshd_config
+
+找到：PermitRootLogin prohibit-password，注释掉此项
+
+添加：PermitRootLogin yes
+
+
+执行命令：sudo service ssh restart
+
+4.配置jupyter notebook
+
+jupyter notebook是一个基于web的编程交互界面，我们主要使用jupyter来进行算法测试、模型建模，jupyter notebook在安装anaconda的时候就已经安装了，这里我们需要配置一些参数，使得我们用其它电脑连接这台主机的时候，可以在网页上打开这台主机的jupyter notebook。
+
+详细教程可以看这篇文章：远程访问jupyter notebook
+
+这里提醒一点，如果发现用Xshell或putty连接到GPU主机后，命令行输入：jupyter notebook，然后在浏览器上输入：“GPU主机的IP地址:8888”，若发现无法打开，则有可能是防火墙问题，禁止了jupyter的端口，可以在防火墙中通过端口，点击看这篇教程：Ubuntu默认防火墙安装、启用、配置、端口、查看状态相关信息
+
+安装防火墙：
+
+sudo apt-get install ufw
+
+开启端口：
+
+sudo ufw allow 8888
+
+重启后若发现还是不行，那就有可能是因为你设置了网络代理，这时候要在你的浏览器设置取消全局代理：
+
+
+上面的所有教程能解决jupyter notebook的设置问题，若还出现问题，请从头再查看一遍此部分教程。
+
+八、设置开机启动进入命令行模式
+我们要使用其他电脑来远程连接这台主机，就要设置开机进入命令行模式，设置只需一句命令，网上其它有关修改gurb的教程都不适用于ubuntu16.04：
+
+sudo systemctl set-default multi-user target
+
+重启后就能直接进入命令行模式了。
+
+
+
